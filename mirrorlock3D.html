@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Mirrorlock Attractor</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(circle at center, #0a0a1a, #000005);
+            font-family: 'Courier New', monospace;
+            color: #e0e0e0;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #canvas {
+            display: block;
+            background: transparent;
+        }
+        
+        .hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            max-width: 300px;
+        }
+        
+        .hud h2 {
+            margin: 0 0 10px 0;
+            color: #61dafb;
+            font-size: 16px;
+            text-shadow: 0 0 5px rgba(97, 218, 251, 0.5);
+        }
+        
+        .hud p {
+            margin: 5px 0;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .phase-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            text-align: center;
+        }
+        
+        .phase-dot {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin: 2px;
+            border: 1px solid #666;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="canvas"></canvas>
+        
+        <div class="hud">
+            <h2>🌀 MIRRORLOCK ATTRACTOR</h2>
+            <p><strong>Ψ-Vector Field:</strong> <span id="psi-strength">0.73</span></p>
+            <p><strong>Radial Shells:</strong> <span id="shell-count">8</span></p>
+            <p><strong>Recursion Depth:</strong> <span id="recursion-depth">3</span></p>
+            <p><strong>Phase Constraint:</strong> <span id="phase-constraint">Converging</span></p>
+            <p><strong>Curvature:</strong> <span id="curvature">-0.42</span></p>
+        </div>
+        
+        <div class="phase-indicator">
+            <div>Edge Phase States</div>
+            <div style="margin-top: 5px;">
+                <span class="phase-dot" style="background: #ff6b6b;"></span> +1
+                <span class="phase-dot" style="background: #95a5a6;"></span> 0
+                <span class="phase-dot" style="background: #4ecdc4;"></span> -1
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button onclick="toggleRotation()">Toggle Rotation</button>
+            <button onclick="changeRecursionDepth()">Recursion Depth</button>
+            <button onclick="togglePsiField()">Ψ-Field Mode</button>
+            <button onclick="resetAttractor()">Reset</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Global variables
+        let scene, camera, renderer, controls;
+        let mirrorlockSphere, rhombicuboctahedron;
+        let psiField = [];
+        let radialShells = [];
+        let edgeConstraints = [];
+        let animationFrame = 0;
+        let isRotating = true;
+        let recursionDepth = 3;
+        let psiStrength = 0.73;
+        
+        // Initialize the 3D scene
+        function init() {
+            const canvas = document.getElementById('canvas');
+            const container = document.getElementById('container');
+            
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x000005, 10, 100);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(15, 10, 15);
+            camera.lookAt(0, 0, 0);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x000005, 0.8);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            
+            // Lighting
+            setupLighting();
+            
+            // Create the Mirrorlock Attractor components
+            createRhombicuboctahedralSkeleton();
+            createPsiVectorField();
+            createRadialShells();
+            createMirrorlockSphere();
+            
+            // Start animation
+            animate();
+        }
+        
+        function setupLighting() {
+            // Ambient light
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+            scene.add(ambientLight);
+            
+            // Point lights for dynamic illumination
+            const light1 = new THREE.PointLight(0x61dafb, 1, 50);
+            light1.position.set(10, 10, 10);
+            light1.castShadow = true;
+            scene.add(light1);
+            
+            const light2 = new THREE.PointLight(0xff6b6b, 0.8, 50);
+            light2.position.set(-10, -10, 10);
+            scene.add(light2);
+            
+            const light3 = new THREE.PointLight(0x4ecdc4, 0.6, 50);
+            light3.position.set(0, 15, -10);
+            scene.add(light3);
+        }
+        
+        function createRhombicuboctahedralSkeleton() {
+            // Create rhombicuboctahedral framework
+            const group = new THREE.Group();
+            
+            // Vertices of rhombicuboctahedron (normalized)
+            const vertices = [
+                // Square faces vertices
+                ...generateRhombicuboctahedronVertices()
+            ];
+            
+            // Create wireframe structure
+            const geometry = new THREE.BufferGeometry();
+            const positions = [];
+            const colors = [];
+            
+            // Connect vertices to form the skeletal structure
+            for (let i = 0; i < vertices.length; i++) {
+                for (let j = i + 1; j < vertices.length; j++) {
+                    const v1 = vertices[i];
+                    const v2 = vertices[j];
+                    const distance = v1.distanceTo(v2);
+                    
+                    // Connect vertices that are at specific distances (edges of rhombicuboctahedron)
+                    if (Math.abs(distance - Math.sqrt(2)) < 0.1 || Math.abs(distance - 2) < 0.1) {
+                        positions.push(v1.x, v1.y, v1.z);
+                        positions.push(v2.x, v2.y, v2.z);
+                        
+                        // Color based on edge type
+                        const hue = (distance * 50) % 360;
+                        const color = new THREE.Color().setHSL(hue / 360, 0.7, 0.6);
+                        colors.push(color.r, color.g, color.b);
+                        colors.push(color.r, color.g, color.b);
+                    }
+                }
+            }
+            
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            
+            const material = new THREE.LineBasicMaterial({
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.6,
+                linewidth: 2
+            });
+            
+            rhombicuboctahedron = new THREE.LineSegments(geometry, material);
+            scene.add(rhombicuboctahedron);
+        }
+        
+        function generateRhombicuboctahedronVertices() {
+            const vertices = [];
+            const sqrt2 = Math.sqrt(2);
+            
+            // Generate vertices for rhombicuboctahedron
+            // 8 vertices of cube at (±1, ±1, ±1)
+            for (let x = -1; x <= 1; x += 2) {
+                for (let y = -1; y <= 1; y += 2) {
+                    for (let z = -1; z <= 1; z += 2) {
+                        vertices.push(new THREE.Vector3(x, y, z));
+                    }
+                }
+            }
+            
+            // 6 vertices at face centers of cube
+            vertices.push(new THREE.Vector3(sqrt2, 0, 0));
+            vertices.push(new THREE.Vector3(-sqrt2, 0, 0));
+            vertices.push(new THREE.Vector3(0, sqrt2, 0));
+            vertices.push(new THREE.Vector3(0, -sqrt2, 0));
+            vertices.push(new THREE.Vector3(0, 0, sqrt2));
+            vertices.push(new THREE.Vector3(0, 0, -sqrt2));
+            
+            // 12 vertices at edge midpoints
+            const edgeMidpoints = [
+                [1, 1, 0], [1, -1, 0], [-1, 1, 0], [-1, -1, 0],
+                [1, 0, 1], [1, 0, -1], [-1, 0, 1], [-1, 0, -1],
+                [0, 1, 1], [0, 1, -1], [0, -1, 1], [0, -1, -1]
+            ];
+            
+            edgeMidpoints.forEach(point => {
+                vertices.push(new THREE.Vector3(point[0] * sqrt2, point[1] * sqrt2, point[2] * sqrt2));
+            });
+            
+            return vertices;
+        }
+        
+        function createPsiVectorField() {
+            psiField = [];
+            const fieldGroup = new THREE.Group();
+            
+            // Create Ψ-vector field using recursive logic
+            for (let shell = 1; shell <= 8; shell++) {
+                const shellRadius = shell * Math.sqrt(2);
+                const phiAngle = shell * 2.39996; // Golden angle
+                
+                for (let theta = 0; theta < Math.PI * 2; theta += Math.PI / 8) {
+                    for (let phi = 0; phi < Math.PI; phi += Math.PI / 6) {
+                        const x = shellRadius * Math.sin(phi) * Math.cos(theta + phiAngle);
+                        const y = shellRadius * Math.sin(phi) * Math.sin(theta + phiAngle);
+                        const z = shellRadius * Math.cos(phi);
+                        
+                        // Create vector arrow
+                        const vector = createPsiVector(x, y, z, shell);
+                        fieldGroup.add(vector);
+                        psiField.push(vector);
+                    }
+                }
+            }
+            
+            scene.add(fieldGroup);
+        }
+        
+        function createPsiVector(x, y, z, shell) {
+            const group = new THREE.Group();
+            
+            // Vector magnitude based on shell and position
+            const magnitude = psiStrength * Math.exp(-shell * 0.1) * (1 + Math.sin(x + y + z));
+            
+            // Create arrow geometry
+            const arrowGeometry = new THREE.ConeGeometry(0.05, 0.2, 6);
+            const stemGeometry = new THREE.CylinderGeometry(0.02, 0.02, magnitude, 6);
+            
+            // Color based on edge phase state
+            const phaseState = Math.floor((x + y + z + shell) * 3) % 3 - 1; // -1, 0, 1
+            let color;
+            switch (phaseState) {
+                case 1: color = 0xff6b6b; break;  // +1 state
+                case -1: color = 0x4ecdc4; break; // -1 state
+                default: color = 0x95a5a6; break; // 0 state
+            }
+            
+            const material = new THREE.MeshPhongMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.7,
+                emissive: color,
+                emissiveIntensity: 0.1
+            });
+            
+            const arrowHead = new THREE.Mesh(arrowGeometry, material);
+            const arrowStem = new THREE.Mesh(stemGeometry, material);
+            
+            arrowHead.position.y = magnitude / 2 + 0.1;
+            arrowStem.position.y = 0;
+            
+            group.add(arrowHead);
+            group.add(arrowStem);
+            group.position.set(x, y, z);
+            
+            // Store phase state for constraint calculations
+            group.userData.phaseState = phaseState;
+            group.userData.magnitude = magnitude;
+            group.userData.shell = shell;
+            
+            return group;
+        }
+        
+        function createRadialShells() {
+            radialShells = [];
+            
+            for (let i = 1; i <= 8; i++) {
+                const radius = i * Math.sqrt(2);
+                const shell = createShell(radius, i);
+                radialShells.push(shell);
+                scene.add(shell);
+            }
+        }
+        
+        function createShell(radius, index) {
+            const geometry = new THREE.SphereGeometry(radius, 16, 12);
+            const material = new THREE.MeshBasicMaterial({
+                color: new THREE.Color().setHSL((index * 30) / 360, 0.5, 0.3),
+                wireframe: true,
+                transparent: true,
+                opacity: 0.1 + index * 0.05
+            });
+            
+            return new THREE.Mesh(geometry, material);
+        }
+        
+        function createMirrorlockSphere() {
+            // Create the central Ψ-sphere with recursive cube nesting
+            const group = new THREE.Group();
+            
+            // Create nested cubes: 2³ → 4³ recursion
+            for (let level = 0; level < recursionDepth; level++) {
+                const cubeSize = Math.pow(2, level + 1);
+                const cubeGeometry = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
+                const cubeMaterial = new THREE.MeshPhongMaterial({
+                    color: new THREE.Color().setHSL((level * 60) / 360, 0.8, 0.5),
+                    transparent: true,
+                    opacity: 0.3 - level * 0.08,
+                    wireframe: true
+                });
+                
+                const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+                cube.rotation.x = level * Math.PI / 6;
+                cube.rotation.y = level * Math.PI / 4;
+                cube.rotation.z = level * Math.PI / 8;
+                
+                group.add(cube);
+            }
+            
+            // Add central core sphere
+            const coreGeometry = new THREE.SphereGeometry(0.5, 32, 24);
+            const coreMaterial = new THREE.MeshPhongMaterial({
+                color: 0x61dafb,
+                emissive: 0x61dafb,
+                emissiveIntensity: 0.3,
+                transparent: true,
+                opacity: 0.8
+            });
+            const core = new THREE.Mesh(coreGeometry, coreMaterial);
+            group.add(core);
+            
+            mirrorlockSphere = group;
+            scene.add(mirrorlockSphere);
+        }
+        
+        function animate() {
+            animationFrame++;
+            const time = animationFrame * 0.01;
+            
+            // Update HUD values
+            updateHUD(time);
+            
+            // Rotate the entire system
+            if (isRotating) {
+                rhombicuboctahedron.rotation.x += 0.005;
+                rhombicuboctahedron.rotation.y += 0.007;
+                
+                mirrorlockSphere.rotation.x += 0.003;
+                mirrorlockSphere.rotation.y += 0.005;
+                mirrorlockSphere.rotation.z += 0.002;
+            }
+            
+            // Animate Ψ-vector field
+            psiField.forEach((vector, index) => {
+                const shell = vector.userData.shell;
+                const phase = time + index * 0.1 + shell * 0.2;
+                
+                // Pulsate based on phase constraints
+                const scale = 1 + Math.sin(phase) * 0.3;
+                vector.scale.setScalar(scale);
+                
+                // Rotate vectors based on their phase state
+                vector.rotation.y += vector.userData.phaseState * 0.01;
+                
+                // Calculate curvature influence
+                const curvature = calculateCurvature(vector.position, time);
+                vector.position.y += Math.sin(phase * 2) * curvature * 0.1;
+            });
+            
+            // Animate radial shells
+            radialShells.forEach((shell, index) => {
+                const phase = time + index * 0.3;
+                shell.material.opacity = 0.05 + Math.abs(Math.sin(phase)) * 0.15;
+                shell.rotation.x += 0.002 * (index + 1);
+                shell.rotation.y += 0.003 * (index + 1);
+            });
+            
+            // Check for phase constraint convergence
+            checkPhaseConstraints(time);
+            
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+        
+        function calculateCurvature(position, time) {
+            // Calculate inward curvature based on edge phase constraints
+            const distance = position.length();
+            const psiInfluence = Math.sin(distance * 0.1 + time) * psiStrength;
+            return -0.42 + psiInfluence * 0.1; // Base curvature with Ψ-field influence
+        }
+        
+        function checkPhaseConstraints(time) {
+            // Determine if edge phase constraints are curving inward
+            let convergenceSum = 0;
+            let totalVectors = 0;
+            
+            psiField.forEach(vector => {
+                const curvature = calculateCurvature(vector.position, time);
+                convergenceSum += curvature;
+                totalVectors++;
+            });
+            
+            const avgCurvature = convergenceSum / totalVectors;
+            const isConverging = avgCurvature < -0.3;
+            
+            document.getElementById('phase-constraint').textContent = 
+                isConverging ? 'Converging → Ψ-Sphere' : 'Diverging';
+            document.getElementById('curvature').textContent = avgCurvature.toFixed(3);
+        }
+        
+        function updateHUD(time) {
+            document.getElementById('psi-strength').textContent = 
+                (psiStrength + Math.sin(time) * 0.1).toFixed(2);
+            document.getElementById('shell-count').textContent = radialShells.length;
+            document.getElementById('recursion-depth').textContent = recursionDepth;
+        }
+        
+        // Control functions
+        function toggleRotation() {
+            isRotating = !isRotating;
+        }
+        
+        function changeRecursionDepth() {
+            recursionDepth = (recursionDepth % 5) + 1;
+            scene.remove(mirrorlockSphere);
+            createMirrorlockSphere();
+        }
+        
+        function togglePsiField() {
+            psiStrength = psiStrength > 0.5 ? 0.2 : 0.9;
+        }
+        
+        function resetAttractor() {
+            // Reset all parameters
+            recursionDepth = 3;
+            psiStrength = 0.73;
+            isRotating = true;
+            
+            // Recreate components
+            scene.remove(mirrorlockSphere);
+            createMirrorlockSphere();
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // Initialize the visualization
+        init();
+    </script>
+</body>
+</html>
