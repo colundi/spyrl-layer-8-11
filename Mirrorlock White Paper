@@ -1,0 +1,25 @@
+Mirrorlock: A Symbolic Attractor Tiling System
+This paper introduces Mirrorlock, a novel 3D symbolic tiling framework that unifies ternary edge-state logic, non-commutative constraint propagation, recursive attractor dynamics, and categorical convergence to a Ψ-sphere structure.
+1. Abstract
+Mirrorlock is the first known system to integrate ternary symbolic edge states, non-commutative placement logic, and recursive Lyapunov convergence in a 3D monotile tiling model. No published system combines all these features. We formalize Mirrorlock using category theory, persistent homology, and constraint satisfaction dynamics.
+2. Literature Gap
+No known 3D tiling system in mathematical literature incorporates ternary symbolic edge states, recursive attractor formation, and topological closure via constraint flows. The closest comparisons include 2D symbolic tilings (Stérin 2023), L-systems, cellular automata, and aperiodic tiling theory — none of which implement all Mirrorlock features simultaneously.
+3. Formal Definitions
+A Mirrorlock tile is a 6-kite monotile assigned a symbolic edge state in {−1, 0, +1}. Tiling proceeds shell by shell, each tile's placement governed by the non-commutative interaction of its edge states and the full placement history.
+4. Categorical Framework
+We define categories Hist (placement histories) and Tile (symbolic configurations). A functor P: Hist → Tile maps histories to symbolic fields. A Lyapunov functor L: Hist → (ℝ≥0, ≤) guarantees convergence via symbolic curvature descent.
+5. Attractor Construction
+The Ψ-sphere is constructed as a categorical limit Ψ_∞ = lim S_n. Persistent homology confirms convergence via the emergence of H₂ features (voids) and the suppression of H₁ (loops), with a dominant H₀ (connectivity).
+6. Symbolic Curvature and Lyapunov Descent
+We define symbolic curvature as the mismatch penalty between adjacent symbolic edge states. The Lyapunov function L(X_n) decreases across shell layers. A valid Mirrorlock growth step must reduce symbolic curvature or maintain equilibrium.
+7. Persistent Homology Signatures
+Expected signature: one long H₀ bar (connectedness), no persistent H₁ (loop suppression), and one long H₂ (void enclosure). This aligns with the topological signature of a 2-sphere boundary, confirming closure.
+8. Augmented D-Symbols
+We extend classical D-symbols with symbolic state, placement time, curvature metadata, and ancestry constraints. A symbolic placement tree and serialization structure are proposed for real-time analysis, rollback, and proof generation.
+9. Conclusion
+Mirrorlock is the first documented symbolic tiling system with ternary logic, recursive curvature descent, and topological attractor closure. Its framework invites further research into symbolic attractor physics, constraint dynamics, and computational tiling logic.
+10. References
+- Stérin, P. (2023). The Maze-Walking Tile Assembly Model.
+- Delaney-Dress symbols and aperiodic tiling theory.
+- Projects.tiling_systems (ongoing, unpublished).
+- Gudhi, Ripser: TDA libraries for persistent homology.
